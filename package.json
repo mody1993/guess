@@ -9,7 +9,6 @@
   "dependencies": {
     "dotenv": "latest",
     "wolf.js": "latest",
-    "@google/genai": "latest",
     "node-fetch": "latest"
   }
 }
