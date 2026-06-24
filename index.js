@@ -17,54 +17,56 @@ async function guessImage(base64Image, mimeType) {
         const response = await ai.models.generateContent({
             model: 'gemini-1.5-flash',
             contents: [{ role: 'user', parts: [
-                { text: "أجب باسم الشيء فقط في الصورة بكلمة واحدة (مثال: تزلج). لا تشرح، لا تضع علامات." },
+                { text: "أجب باسم الشيء فقط في الصورة بكلمة واحدة. لا تشرح، لا تضع علامات." },
                 { inlineData: { mimeType: mimeType, data: base64Image } }
             ]}],
             generationConfig: { maxOutputTokens: 10, temperature: 0.1 }
         });
         return response.text?.trim().replace(/[.\\/]/g, '');
     } catch (err) {
-        console.error('❌ خطأ في تحليل Gemini:', err.message);
+        console.error('❌ خطأ Gemini:', err.message);
         return null;
     }
 }
 
 service.on('message', async (message) => {
-    // مراقبة الرسائل
-    if (message.sourceSubscriberId == TARGET_USER_ID) {
-        console.log('📬 وصلت رسالة من البوت، نوع الميتا:', message.mimeType);
-    }
+    try {
+        const senderId = Number(message.sourceSubscriberId);
+        const roomId = Number(message.targetGroupId || message.groupId || 0);
 
-    const senderId = Number(message.sourceSubscriberId);
-    const roomId = Number(message.targetGroupId || message.groupId || 0);
+        if (roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
 
-    if (roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
+        // طباعة هيكل الرسالة بالكامل لاكتشاف مكان الصورة
+        console.log('🔍 تفاصيل الرسالة المستلمة:', JSON.stringify(message, null, 2));
 
-    let imageBuffer = null;
-    if (message.body && Buffer.isBuffer(message.body)) {
-        imageBuffer = message.body;
-    } else if (message.imageUrl) {
-        console.log('🔗 جارٍ تحميل الصورة من الرابط...');
-        const res = await fetch(message.imageUrl);
-        imageBuffer = Buffer.from(await res.arrayBuffer());
-    }
+        let imageBuffer = null;
+        let url = message.imageUrl || message.extendedBody?.imageUrl || null;
 
-    if (imageBuffer) {
-        console.log('📸 تم استلام الصورة، جاري التحليل عبر Gemini...');
-        const answer = await guessImage(imageBuffer.toString('base64'), 'image/jpeg');
-        if (answer) {
-            await service.messaging.sendGroupMessage(ROOM_ID, answer);
-            console.log(`🚀 تم إرسال الإجابة بنجاح: ${answer}`);
-        } else {
-            console.log('⚠️ Gemini لم يرجع أي إجابة!');
+        if (url) {
+            console.log('🔗 جاري التحميل من الرابط:', url);
+            const res = await fetch(url);
+            imageBuffer = Buffer.from(await res.arrayBuffer());
+        } else if (message.body && Buffer.isBuffer(message.body)) {
+            imageBuffer = message.body;
         }
-    } else {
-        console.log('⚠️ لم أستطع استخراج بافر الصورة من الرسالة.');
+
+        if (imageBuffer) {
+            console.log('📸 تم استخراج الصورة، جاري التحليل...');
+            const answer = await guessImage(imageBuffer.toString('base64'), 'image/jpeg');
+            if (answer) {
+                await service.messaging.sendGroupMessage(ROOM_ID, answer);
+                console.log(`🚀 تم الإرسال: ${answer}`);
+            }
+        } else {
+            console.log('⚠️ لم أجد صورة في هذه الرسالة، تحقق من الـ JSON أعلاه.');
+        }
+    } catch (err) {
+        console.log('❌ خطأ في المعالجة:', err.message);
     }
 });
 
 service.on('ready', () => {
-    console.log('✅ البوت متصل ومستعد!');
+    console.log('✅ البوت متصل!');
     service.messaging.sendGroupMessage(ROOM_ID, START_COMMAND);
 });
 
