@@ -4,6 +4,7 @@ import { ALL_WORDS } from './wordsLibrary.js';
 
 const { WOLF } = wolfjs;
 
+// ================== الإعدادات ==================
 const ROOM_ID = 81971125;
 const TARGET_USER_ID = 82641759;
 const START_COMMAND = '!كلمات';
@@ -15,24 +16,12 @@ let service = null;
 let reconnecting = false;
 let isBotReady = false;
 
+// ================== قراءة نص الرسالة ==================
 function getMessageText(message) {
   return (message.body || message.content || message.text || message.message || '').trim();
 }
 
-async function send(roomId, text) {
-  try {
-    if (!service || !isBotReady) return false;
-
-    await service.messaging.sendGroupMessage(roomId, text);
-
-    console.log(`📤 تم الإرسال: ${text}`);
-    return true;
-  } catch (err) {
-    console.log('❌ فشل الإرسال:', err.message);
-    return false;
-  }
-}
-
+// ================== استخراج رقم الغرفة ==================
 function getRoomId(message) {
   return Number(
     message.targetGroupId ||
@@ -44,6 +33,23 @@ function getRoomId(message) {
   );
 }
 
+// ================== إرسال رسالة ==================
+async function send(roomId, text) {
+  try {
+    if (!service || !isBotReady) return false;
+
+    await service.messaging.sendGroupMessage(roomId, text);
+
+    console.log(`🚀 تم الإرسال: ${text}`);
+    return true;
+
+  } catch (err) {
+    console.log('❌ فشل الإرسال:', err.message);
+    return false;
+  }
+}
+
+// ================== اختيار الكلمة الثانية ==================
 function getOptimalSecondWord(words, firstWord) {
   const firstLetters = new Set(firstWord.split(''));
 
@@ -55,6 +61,7 @@ function getOptimalSecondWord(words, firstWord) {
   return words[0];
 }
 
+// ================== فلترة القاموس ==================
 function filterDictionary(words, history) {
   return words.filter(word => {
     for (const attempt of history) {
@@ -65,7 +72,9 @@ function filterDictionary(words, history) {
         const letter = guess[i];
         const status = feedback[i];
 
-        if (status === 'green' && word[i] !== letter) return false;
+        if (status === 'green') {
+          if (word[i] !== letter) return false;
+        }
 
         if (status === 'yellow') {
           if (!word.includes(letter) || word[i] === letter) return false;
@@ -86,6 +95,7 @@ function filterDictionary(words, history) {
   });
 }
 
+// ================== تحليل HTML لوحة اللعبة ==================
 function parseGameHtml(html) {
   const regex = /<div class="wolfdlebot-mp-game__content__container__item\s+([^"]+)"[^>]*>(.*?)<\/div>/g;
 
@@ -110,6 +120,7 @@ function parseGameHtml(html) {
     if (rowItems[0].className.includes('border-only')) break;
 
     const word = rowItems.map(item => item.letter).join('');
+
     if (word.length !== 5) continue;
 
     const feedback = rowItems.map(item => {
@@ -124,6 +135,28 @@ function parseGameHtml(html) {
   return rows;
 }
 
+// ================== اختيار المحاولة التالية ==================
+function chooseNextGuess(history) {
+  let currentPool = [...ALL_WORDS];
+
+  if (history.length === 0) {
+    return FIRST_WORD;
+  }
+
+  if (history.length === 1) {
+    return getOptimalSecondWord(currentPool, history[0].word);
+  }
+
+  currentPool = filterDictionary(currentPool, history);
+
+  console.log(`📚 عدد الكلمات المتبقية: ${currentPool.length}`);
+
+  if (currentPool.length === 0) return null;
+
+  return currentPool[0];
+}
+
+// ================== إعادة تشغيل البوت ==================
 async function restartBot(reason) {
   if (reconnecting) return;
 
@@ -143,6 +176,7 @@ async function restartBot(reason) {
   startBot();
 }
 
+// ================== تشغيل البوت ==================
 function startBot() {
   service = new WOLF();
 
@@ -150,15 +184,16 @@ function startBot() {
     try {
       const senderId = Number(message.sourceSubscriberId);
       const roomId = getRoomId(message);
-      const htmlContent = getMessageText(message);
+      const text = getMessageText(message);
 
-      if (!message.isGroup) return;
+      if (!text || !message.isGroup) return;
       if (roomId !== ROOM_ID) return;
       if (senderId !== TARGET_USER_ID) return;
-      if (!htmlContent.includes('wolfdlebot')) return;
+      if (!text.includes('wolfdlebot')) return;
 
-      const history = parseGameHtml(htmlContent);
+      const history = parseGameHtml(text);
 
+      console.log('--------------------');
       console.log(`📊 عدد المحاولات: ${history.length}`);
 
       if (
@@ -170,26 +205,15 @@ function startBot() {
       }
 
       if (history.length >= 6) {
-        console.log('💀 انتهت المحاولات.');
+        console.log('💀 انتهت المحاولات الست بدون فوز');
         return;
       }
 
-      let nextGuess = '';
-      let currentPool = [...ALL_WORDS];
+      const nextGuess = chooseNextGuess(history);
 
-      if (history.length === 0) {
-        nextGuess = FIRST_WORD;
-      } else if (history.length === 1) {
-        nextGuess = getOptimalSecondWord(currentPool, history[0].word);
-      } else {
-        currentPool = filterDictionary(currentPool, history);
-
-        if (currentPool.length === 0) {
-          console.log('⚠️ لا توجد كلمات مطابقة.');
-          return;
-        }
-
-        nextGuess = currentPool[0];
+      if (!nextGuess) {
+        console.log('⚠️ لم يتم العثور على كلمة مناسبة');
+        return;
       }
 
       console.log(`👉 الكلمة المختارة: ${nextGuess}`);
@@ -209,6 +233,7 @@ function startBot() {
     reconnecting = false;
 
     await sleep(2000);
+
     await send(ROOM_ID, START_COMMAND);
   });
 
