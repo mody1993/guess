@@ -1,6 +1,7 @@
-import 'dotenv/config';
-import wolfjs from 'wolf.js';
-import { ALL_WORDS } from './wordsLibrary.js';
+require('dotenv/config');
+
+const wolfjs = require('wolf.js');
+const { ALL_WORDS } = require('./wordsLibrary.js');
 
 const WOLF_CLIENT = wolfjs.WOLF || wolfjs.WOLFBot;
 
@@ -32,19 +33,8 @@ function getRoomId(message) {
 
 function getMessagingService() {
   if (!service) return null;
-
-  if (service.messaging && typeof service.messaging !== 'function') {
-    return service.messaging;
-  }
-
-  if (typeof service.messaging === 'function') {
-    return service.messaging();
-  }
-
-  if (service._messaging) {
-    return service._messaging;
-  }
-
+  if (service._messaging) return service._messaging;
+  if (service.messaging && typeof service.messaging !== 'function') return service.messaging;
   return null;
 }
 
@@ -55,12 +45,11 @@ async function send(roomId, text) {
     const messaging = getMessagingService();
 
     if (!messaging || typeof messaging.sendGroupMessage !== 'function') {
-      console.log('❌ فشل الإرسال: دالة sendGroupMessage غير موجودة');
+      console.log('❌ فشل الإرسال: sendGroupMessage غير موجودة');
       return false;
     }
 
     await messaging.sendGroupMessage(roomId, text);
-
     console.log(`🚀 تم الإرسال: ${text}`);
     return true;
 
@@ -247,7 +236,7 @@ async function handleMessage(message) {
 
 function startBot() {
   if (!WOLF_CLIENT) {
-    console.log('❌ لم يتم العثور على WOLF أو WOLFBot داخل wolf.js');
+    console.log('❌ لم يتم العثور على WOLF أو WOLFBot');
     return;
   }
 
