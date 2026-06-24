@@ -10,34 +10,25 @@ const START_COMMAND = '!ج';
 
 const service = new WOLF();
 
-// دالة البحث العكسي (تستخدم Yandex كمحرك مجاني)
+// دالة البحث العكسي المعتمدة (بدون Gemini)
 async function reverseSearch(imageUrl) {
     try {
-        // نرسل رابط الصورة مباشرة إلى Yandex للبحث العكسي
+        // نستخدم Yandex لأنه الأقوى في التعرف على الصور حالياً
         const searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodeURIComponent(imageUrl)}`;
-        
-        // هنا نقوم بجلب الصفحة وتحليل العنوان (Title) الخاص بالنتيجة الأولى
-        const response = await fetch(searchUrl);
+        const response = await fetch(searchUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
         const html = await response.text();
-        
-        // استخراج العنوان التقريبي للشيء في الصورة (من خلال الـ Meta Tag)
         const match = html.match(/<title>(.*?)<\/title>/i);
         return match ? match[1].replace('Yandex', '').replace('Image', '').trim() : "غير معروف";
-    } catch (err) {
-        console.error('❌ خطأ في البحث العكسي:', err.message);
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 service.on('message', async (message) => {
-    const senderId = Number(message.sourceSubscriberId);
-    const roomId = Number(message.targetGroupId || message.groupId || 0);
-
-    if (roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
-
-    // تفعيل التحليل فقط عند إرسال كلمة 'حل' لتوفير الكوتا
-    if (message.body && message.body.startsWith('http')) {
-        console.log('🔍 جاري البحث العكسي عن الصورة...');
+    if (Number(message.targetGroupId) !== ROOM_ID || Number(message.sourceSubscriberId) !== TARGET_USER_ID) return;
+    
+    if (message.body?.startsWith('http') && (message.body.includes('.jpg') || message.body.includes('.jpeg'))) {
+        console.log('🔍 جاري البحث العكسي...');
         
         const answer = await reverseSearch(message.body);
         
@@ -48,4 +39,11 @@ service.on('message', async (message) => {
     }
 });
 
-service.login(process.env.U_MAIL_1, process.env.U_PASS_1);
+service.login(process.env.U_MAIL_1, process.env.U_PASS_1).then(async () => {
+    console.log('✅ تم تسجيل الدخول!');
+    setTimeout(async () => {
+        await service.messaging.sendGroupMessage(ROOM_ID, START_COMMAND);
+    }, 5000);
+}).catch(err => {
+    console.error('❌ خطأ في التسجيل:', err);
+});
