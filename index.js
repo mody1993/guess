@@ -15,18 +15,24 @@ const service = new WOLF();
 
 async function guessImage(base64Image, mimeType) {
     try {
-        const response = await ai.models.generateContent({
-            // جرب هذا الموديل أولاً:
-            model: 'gemini-1.5-flash-latest', 
-            contents: [{ role: 'user', parts: [
-                { text: "أجب باسم الشيء فقط بكلمة واحدة بالعربية. لا تكتب أي شيء آخر." },
-                { inlineData: { mimeType: mimeType, data: base64Image } }
-            ]}],
+        // نستخدم الموديل القياسي بدون أي إضافات
+        const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const response = await model.generateContent({
+            contents: [{ 
+                role: 'user', 
+                parts: [
+                    { text: "أجب باسم الشيء فقط بكلمة واحدة بالعربية." },
+                    { inlineData: { mimeType: mimeType, data: base64Image } }
+                ] 
+            }],
             generationConfig: { maxOutputTokens: 10, temperature: 0.1 }
         });
-        return response.text?.trim().replace(/[.\\/]/g, '');
+        
+        const result = await response.response;
+        return result.text().trim().replace(/[.\\/]/g, '');
     } catch (err) {
-        console.error('❌ خطأ Gemini:', err.message);
+        console.error('❌ خطأ Gemini النهائي:', err.message);
         return null;
     }
 }
