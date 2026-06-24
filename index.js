@@ -1,56 +1,55 @@
 import 'dotenv/config';
 import wolfjs from 'wolf.js';
-import fetch from 'node-fetch';
 
 const { WOLF } = wolfjs;
-const service = new WOLF();
 
-const ROOM_ID = 70505; 
-const GUESS_BOT_ID = 26491704; // ⚠️ تأكد من هذا الآيدي
+// ================== الإعدادات ==================
+const ROOM_ID = 81971125;
+const TARGET_USER_ID = 82641759; // ⚠️ ضع هنا ID بوت الكلمات (WOLFdle Bot) الرسمي
 
-let lastCategory = "";
+let service = null;
 
-service.on('message', async (message) => {
-    if (Number(message.targetGroupId) !== ROOM_ID) return;
-    if (Number(message.sourceSubscriberId) !== GUESS_BOT_ID) return;
+function startTestBot() {
+  service = new WOLF();
 
+  service.on('message', async (message) => {
     try {
-        if (message.body.includes('الفئة:')) {
-            lastCategory = message.body.split('\n')[0].replace('الفئة:', '').trim();
-            return; 
-        }
+      const senderId = Number(message.sourceSubscriberId);
+      const roomId = Number(message.targetGroupId || message.groupId || 0);
 
-        if (message.body.startsWith('http') && message.body.match(/\.(jpeg|jpg|png)/i)) {
-            const encoded = encodeURIComponent(message.body);
-            const searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encoded}`;
-            
-            const res = await fetch(searchUrl, { 
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' }
-            });
+      // الاستماع فقط لرسائل بوت اللعبة داخل الغرفة المحددة
+      if (roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
 
-            if (!res.ok) return;
-            const html = await res.text();
-            
-            // استخراج العناوين والكلمات الدلالية
-            const matches = [...html.matchAll(/class="CbirItem-Title"[^>]*>([^<]+)<\/div>|class="CbirTags-Item"[^>]*>([^<]+)<\/a>/gi)];
-            let answers = matches.map(m => (m[1] || m[2]).replace(/<[^>]*>|Yandex|Images|Search|Bing|Google|-|تنزيل|صورة|خلفية|شعار|تصميم/gi, '').trim());
-            
-            // تصفية النتائج (نأخذ الكلمات التي لا تتجاوز 15 حرف)
-            let finalAnswer = answers.find(a => a.length > 1 && a.length < 15);
+      console.log('\n================ 📥 رسالة جديدة من بوت اللعبة ================');
+      console.log(`🆔 نوع الرسالة (Type): ${message.type}`);
+      console.log(`📝 نص الرسالة (Body): "${message.body || 'لا يوجد نص'}"`);
+      console.log(`🖼️ نوع الميديا (MimeType): ${message.mimeType || 'لا يوجد'}`);
+      
+      // طباعة الـ Embeds لو كانت الصورة مرسلة كبطاقة
+      if (message.embeds) {
+        console.log('🔗 الـ Embeds المرفقة:', JSON.stringify(message.embeds, null, 2));
+      }
 
-            if (finalAnswer) {
-                console.log(`[✅] الإجابة: ${finalAnswer}`);
-                await service.messaging.sendGroupMessage(ROOM_ID, `!ج ${finalAnswer}`);
-            } else {
-                console.log('[❌] لم أجد إجابة مناسبة في هذه الجولة.');
-            }
-        }
-    } catch (error) {
-        console.error('[⚠️] خطأ:', error.message);
+      // طباعة الكائن (Message Object) بالكامل لرؤية كل الخصائص الخفية
+      console.log('⚙️ تفاصيل كائن الرسالة الكاملة:');
+      console.dir(message, { depth: null });
+      console.log('============================================================\n');
+
+    } catch (err) {
+      console.log('❌ خطأ أثناء فحص الرسالة:', err.message);
     }
-});
+  });
 
-service.login(process.env.U_MAIL_1, process.env.U_PASS_1).then(() => {
-    console.log('[🟢] البوت جاهز!');
-    setTimeout(() => service.messaging.sendGroupMessage(ROOM_ID, '!ج'), 3000);
-});
+  service.on('ready', async () => {
+    console.log('✅ بوت الفحص جاهز ويعمل الآن... في انتظار رسالة من بوت اللعبة.');
+    
+    // إرسال أمر البدء لتنشيط اللعبة ورؤية الرد فوراً
+    await service.messaging.sendGroupMessage(ROOM_ID, '!كلمات');
+  });
+
+  service.login(process.env.U_MAIL_1, process.env.U_PASS_1).catch(err => {
+    console.log('❌ فشل تسجيل الدخول:', err.message);
+  });
+}
+
+startTestBot();
