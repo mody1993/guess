@@ -1,141 +1,62 @@
 import 'dotenv/config';
 import wolfjs from 'wolf.js';
 import { GoogleGenAI } from '@google/genai';
+import fetch from 'node-fetch';
 
 const { WOLF } = wolfjs;
 
-// ================== الإعدادات ==================
 const ROOM_ID = 70505;
-const TARGET_USER_ID = 26491704; // الـ ID الخاص بـ Guess What Bot
+const TARGET_USER_ID = 26491704;
 const START_COMMAND = '!ج';
 
-// تهيئة ذكاء Google المجاني باستخدام المتغير البيئي الجديد
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const service = new WOLF();
 
-let service = null;
-let reconnecting = false;
-let isBotReady = false;
-
-function getRoomId(message) {
-  return Number(message.targetGroupId || message.groupId || message.channelId || message.recipientGroupId || message.group?.id || 0);
-}
-
-async function send(roomId, text) {
-  try {
-    if (!service || !isBotReady) return false;
-    await service.messaging.sendGroupMessage(roomId, text);
-    console.log(`🚀 تم إرسال الإجابة: ${text}`);
-    return true;
-  } catch (err) {
-    console.log('❌ فشل الإرسال:', err.message);
-    return false;
-  }
-}
-
-// ================== دالة التخمين المجانية عبر Gemini ==================
 async function guessImage(base64Image, mimeType) {
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash', // الموديل فائق السرعة والمجاني لقراءة وتحليل الصور
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: "ما هذا الشيء الموجود في الصورة؟ أجب بكلمة واحدة أو كلمتين فقط باللغة العربية (مثال مباشر: أسد، بيانو، برج إيفل، ناروتو، بيتزا، كرة القدم، فيسبوك). لا تكتب أي مقدمات، شرح، أو علامات ترقيم، فقط الاسم المباشر والصحيح للشيء للفوز بالمسابقة." },
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Image
-              }
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        maxOutputTokens: 15,
-        temperature: 0.1
-      }
-    });
-
-    const answer = response.text?.trim();
-    return answer ? answer.replace(/[.\\/]/g, '') : null;
-
-  } catch (error) {
-    console.error('❌ خطأ أثناء التخمين عبر Gemini:', error.message);
-    return null;
-  }
-}
-
-// ================== تشغيل البوت والربط مع وولف ==================
-function startBot() {
-  service = new WOLF();
-
-  service.on('message', async (message) => {
     try {
-      const senderId = Number(message.sourceSubscriberId);
-      const roomId = getRoomId(message);
-
-      // الفلاتر والشروط الأساسية للغرفة وبوت الفعاليات
-      if (!message.isGroup || roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
-
-      // فحص إذا كانت الرسالة القادمة عبارة عن صورة
-      const isImage = message.mimeType?.startsWith('image/') || message.isImage || Buffer.isBuffer(message.body);
-      if (!isImage) return;
-
-      console.log('--------------------');
-      console.log('📸 تم استلام صورة من بوت الفعاليات، جاري معالجتها مجاناً...');
-
-      let imageBuffer = message.body;
-      if (!imageBuffer || !Buffer.isBuffer(imageBuffer)) {
-        console.log('⚠️ لم يتم العثور على بافر الصورة داخل الرسالة.');
-        return;
-      }
-
-      const mimeType = message.mimeType || 'image/jpeg';
-      const base64Image = imageBuffer.toString('base64');
-
-      const startTime = Date.now();
-      const answer = await guessImage(base64Image, mimeType);
-      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-
-      if (answer) {
-        console.log(`💡 التخمين الذكي (Gemini): "${answer}" (استغرق ${duration} ثانية)`);
-        await send(roomId, answer);
-      }
-
+        const response = await ai.models.generateContent({
+            model: 'gemini-1.5-flash',
+            contents: [{ role: 'user', parts: [
+                { text: "أجب باسم الشيء فقط بكلمة واحدة بالعربية. لا تشرح، لا تضع علامات ترقيم." },
+                { inlineData: { mimeType: mimeType, data: base64Image } }
+            ]}],
+            generationConfig: { maxOutputTokens: 10, temperature: 0.1 }
+        });
+        return response.text?.trim().replace(/[.\\/]/g, '');
     } catch (err) {
-      console.log('❌ Message Error:', err.message);
+        console.error('❌ Gemini Error:', err.message);
+        return null;
     }
-  });
-
-  service.on('ready', async () => {
-    console.log('✅ الحساب جاهز ومستعد لتخمين الصور مجاناً بالكامل عبر Gemini!');
-    isBotReady = true;
-    reconnecting = false;
-    await sleep(2000);
-    await send(ROOM_ID, START_COMMAND);
-  });
-
-  service.on('error', () => restartBot('service error'));
-  service.on('disconnected', () => restartBot('disconnected'));
-  service.on('close', () => restartBot('close'));
-
-  service.login(process.env.U_MAIL_1, process.env.U_PASS_1).catch(() => {
-    reconnecting = false;
-    restartBot('login failed');
-  });
 }
 
-async function restartBot(reason) {
-  if (reconnecting) return;
-  reconnecting = true;
-  isBotReady = false;
-  console.log('🔄 إعادة تشغيل البوت بسبب:', reason);
-  try { if (service) { service.removeAllListeners(); await service.logout().catch(() => {}); } } catch {}
-  await sleep(5000);
-  startBot();
-}
+service.on('message', async (message) => {
+    const senderId = Number(message.sourceSubscriberId);
+    const roomId = Number(message.targetGroupId || message.groupId || message.channelId || message.recipientGroupId || message.group?.id || 0);
 
-startBot();
+    if (roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
+
+    let imageBuffer = null;
+    if (message.body && Buffer.isBuffer(message.body)) {
+        imageBuffer = message.body;
+    } else if (message.imageUrl) {
+        const res = await fetch(message.imageUrl);
+        imageBuffer = Buffer.from(await res.arrayBuffer());
+    }
+
+    if (imageBuffer) {
+        console.log('📸 تم استلام الصورة، جاري التحليل...');
+        const answer = await guessImage(imageBuffer.toString('base64'), 'image/jpeg');
+        if (answer) {
+            await service.messaging.sendGroupMessage(ROOM_ID, answer);
+            console.log(`🚀 الإجابة المرسلة: ${answer}`);
+        }
+    }
+});
+
+service.on('ready', async () => {
+    console.log('✅ البوت متصل!');
+    await service.messaging.sendGroupMessage(ROOM_ID, START_COMMAND);
+});
+
+service.login(process.env.U_MAIL_1, process.env.U_PASS_1);
