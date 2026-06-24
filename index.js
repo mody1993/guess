@@ -7,8 +7,7 @@ const { WOLF } = wolfjs;
 const ROOM_ID = 70505;
 const TARGET_USER_ID = 26491704;
 const START_COMMAND = '!ج';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${process.env.GEMINI_API_KEY}`;
 const service = new WOLF();
 
 async function guessImage(base64Image) {
