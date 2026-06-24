@@ -1,20 +1,26 @@
-name: Run Guess Bot
+name: WOLFdle Auto Player
+
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # يعمل تلقائياً كل يوم الساعة 12 منتصف الليل بتوقيت جرينتش
+  workflow_dispatch: # يتيح لك إمكانية تشغيل البوت يدوياً بضغطة زر من موقع جيتهاب لتجربته
 
 jobs:
-  build:
+  play-game:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: 📥 سحب الكود من المستودع
+        uses: actions/checkout@v4
+
+      - name: 🟢 إعداد بيئة نود جي إس
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install
-      - name: Run Bot
-        env:
-          U_MAIL_1: ${{ secrets.U_MAIL_1 }}
-          U_PASS_1: ${{ secrets.U_PASS_1 }}
-        run: node index.js
+          cache: 'npm'
+
+      - name: 📦 تثبيت المكتبات (Puppeteer)
+        run: npm install
+
+      - name: 🚀 تشغيل البوت الذكي
+        run: npm start
