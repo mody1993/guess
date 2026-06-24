@@ -3,23 +3,24 @@ name: WOLFdle Auto Player
 on:
   schedule:
     - cron: '0 0 * * *' # يعمل تلقائياً كل يوم منتصف الليل
-  workflow_dispatch: # زر التشغيل اليدوي
+  workflow_dispatch: # زر التشغيل اليدوي للتجربة
 
 jobs:
   play-game:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 سحب الكود
+      - name: 📥 سحب الكود من المستودع
         uses: actions/checkout@v4
 
-      - name: 🟢 إعداد نود جي إس (إصدار متوافق)
+      - name: 🟢 إعداد نود جي إس (الإصدار الأحدث والأقوى)
         uses: actions/setup-node@v4
         with:
-          node-version: '16' # تم التغيير إلى 16 لتوافق حزمة wrtc بالكامل
+          node-version: '20' # عدنا للنسخة المستقرة الحديثة
 
-      - name: 📦 تثبيت المكتبات
-        run: npm install
+      - name: 📦 تثبيت المكتبات الأساسية وتخطي مكتبات الصوت المسببة للمشاكل
+        # الأمر أدناه يمنع npm من بناء مكتبة wrtc لأنه لا يحتاجها للبوت النصي
+        run: npm install --omit=optional --no-audit --no-fund
 
       - name: 🚀 إطلاق البوت
         env:
