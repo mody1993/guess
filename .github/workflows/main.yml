@@ -2,8 +2,8 @@ name: WOLFdle Auto Player
 
 on:
   schedule:
-    - cron: '0 0 * * *' # ينطلق تلقائياً كل يوم منتصف الليل
-  workflow_dispatch: # زر التشغيل اليدوي للتجربة في أي وقت
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   play-game:
@@ -17,7 +17,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          # ❌ قمنا بحذف سطر الـ cache من هنا لمنع الخطأ
 
       - name: 📦 تثبيت المكتبات
         run: npm install
