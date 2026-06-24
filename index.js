@@ -1,15 +1,4 @@
-require('dotenv/config');
 
-const wolfjs = require('wolf.js');
-const { ALL_WORDS } = require('./wordsLibrary.js');
-
-const WOLF_CLIENT = wolfjs.WOLF || wolfjs.WOLFBot;
-
-const ROOM_ID = 81971125;
-const TARGET_USER_ID = 82641759;
-const START_COMMAND = '!كلمات';
-
-const TEST_WORDS = [
   'الميت',
   'سبدور',
   'هنفقة',
