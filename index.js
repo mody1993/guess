@@ -17,7 +17,7 @@ const TEST_WORDS = [
   'حخضذص'
 ];
 
-const MIN_UNIQUE_LETTERS_BEFORE_DICTIONARY = 7;
+const MIN_UNIQUE_LETTERS_BEFORE_DICTIONARY = 5;
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
