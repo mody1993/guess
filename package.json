@@ -1,12 +1,14 @@
 {
-  "name": "wolf-guess-bot",
+  "name": "wolf-words-test",
   "version": "1.0.0",
-  "main": "index.js",
   "type": "module",
-  "dependencies": {
-    "wolf.js": "latest"
-  },
+  "main": "index.js",
   "scripts": {
     "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "latest",
+    "wolf.js": "latest",
+    "@google/genai": "latest"
   }
 }
