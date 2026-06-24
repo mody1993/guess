@@ -243,5 +243,7 @@ function startBot() {
     restartBot('login failed');
   });
 }
+// للتشخيص
+console.log('📦 wolf.js exports:', wolfjs);
 
 startBot();
