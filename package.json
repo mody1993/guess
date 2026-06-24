@@ -1,5 +1,5 @@
 {
-  "name": "wolf-words-test",
+  "name": "guess-bot",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
@@ -9,6 +9,7 @@
   "dependencies": {
     "dotenv": "latest",
     "wolf.js": "latest",
-    "@google/genai": "latest"
+    "@google/genai": "latest",
+    "node-fetch": "latest"
   }
 }
