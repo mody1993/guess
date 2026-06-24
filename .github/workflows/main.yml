@@ -22,11 +22,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '18'
 
       - name: Install dependencies
         run: |
           rm -rf node_modules package-lock.json
+          npm install -g node-pre-gyp
           npm install --no-audit --no-fund
 
       - name: Run Bot
