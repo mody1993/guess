@@ -15,9 +15,9 @@ const service = new WOLF();
 
 async function guessImage(base64Image, mimeType) {
     try {
-        // استخدام الموديل المتوافق مع API الإصدار الحالي
         const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
+            // جرب هذا الموديل أولاً:
+            model: 'gemini-1.5-flash-latest', 
             contents: [{ role: 'user', parts: [
                 { text: "أجب باسم الشيء فقط بكلمة واحدة بالعربية. لا تكتب أي شيء آخر." },
                 { inlineData: { mimeType: mimeType, data: base64Image } }
@@ -30,7 +30,6 @@ async function guessImage(base64Image, mimeType) {
         return null;
     }
 }
-
 service.on('message', async (message) => {
     const senderId = Number(message.sourceSubscriberId);
     const roomId = Number(message.targetGroupId || message.groupId || 0);
