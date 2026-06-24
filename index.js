@@ -11,42 +11,56 @@ const START_COMMAND = '!ج';
 
 const service = new WOLF();
 
-// دالة البحث العكسي - تجلب النتيجة وتستبعد "غير معروف"
+// دالة البحث العكسي مع تنظيف ذكي للنتائج
 async function reverseSearch(imageUrl) {
     try {
         const searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodeURIComponent(imageUrl)}`;
         const response = await fetch(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }});
         const html = await response.text();
         
-        // محاولة استخراج العنوان أو الوصف
-        const metaMatch = html.match(/<meta name="description" content="(.*?)"/i);
         const titleMatch = html.match(/<title>(.*?)<\/title>/i);
-        const result = metaMatch ? metaMatch[1] : (titleMatch ? titleMatch[1] : null);
+        let result = titleMatch ? titleMatch[1] : null;
+
+        if (result) {
+            // قائمة الكلمات المزعجة التي يجب حذفها لتصفية النتيجة
+            const junkPhrases = [
+                "Yandex", "Image search for", "similar products", 
+                "clothes and", "tex", "and", "the", "a", "of", "in"
+            ];
+            
+            junkPhrases.forEach(phrase => {
+                const regex = new RegExp(phrase, 'gi');
+                result = result.replace(regex, '');
+            });
+
+            // تنظيف الفواصل والرموز والمسافات الزائدة
+            result = result.replace(/[,.-]/g, ' ').replace(/\s+/g, ' ').trim();
+        }
         
-        return result ? result.replace(/Yandex/gi, '').replace(/Images/gi, '').trim().substring(0, 50) : null;
+        // إرجاع النتيجة فقط إذا كانت كلمة ذات معنى
+        return (result && result.length > 2) ? result : null;
     } catch (e) { return null; }
 }
 
+// مراقبة الرسائل
 service.on('message', async (message) => {
-    // التأكد من الغرفة والمستخدم
     if (Number(message.targetGroupId) !== ROOM_ID || Number(message.sourceSubscriberId) !== TARGET_USER_ID) return;
     
-    // التحقق من أن الرسالة عبارة عن رابط صورة
     if (message.body?.startsWith('http') && (message.body.includes('.jpg') || message.body.includes('.jpeg'))) {
         console.log('🔍 جاري البحث عن الصورة...');
         const answer = await reverseSearch(message.body);
         
-        // التحقق من أن النتيجة صالحة وغير "مبهمة"
-        if (answer && answer.toLowerCase() !== "غير معروف" && answer.toLowerCase() !== "yandex" && answer.length > 2) {
+        // شرط الصمت التام: لا يرسل شيئاً إلا إذا وجد إجابة نظيفة
+        if (answer && answer.toLowerCase() !== "غير معروف" && answer.toLowerCase() !== "yandex") {
             console.log(`💡 النتيجة المكتشفة: ${answer}`);
             await service.messaging.sendGroupMessage(ROOM_ID, answer);
         } else {
-            console.log('⚠️ لم يتم العثور على نتيجة واضحة، البوت سيبقى صامتاً.');
+            console.log('⚠️ لا توجد نتيجة دقيقة، البوت سيبقى صامتاً.');
         }
     }
 });
 
-// تسجيل الدخول مع تأخير لضمان الاستقرار
+// تسجيل الدخول مع تأخير لضمان استقرار البوت في الغرفة
 service.login(process.env.U_MAIL_1, process.env.U_PASS_1).then(() => {
     console.log('✅ تم تسجيل الدخول بنجاح!');
     setTimeout(async () => {
