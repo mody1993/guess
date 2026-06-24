@@ -24,7 +24,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          rm -rf node_modules
+          rm -rf node_modules package-lock.json
+          npm install -g node-pre-gyp
           npm install --no-audit --no-fund
 
       - name: Run Bot
