@@ -2,7 +2,16 @@ import 'dotenv/config';
 import wolfjs from 'wolf.js';
 import { ALL_WORDS } from './wordsLibrary.js';
 
-const WOLF = wolfjs.WOLF || wolfjs.default || wolfjs;
+console.log('========================');
+console.log('wolfjs =', wolfjs);
+console.log('keys =', Object.keys(wolfjs || {}));
+console.log('========================');
+
+const { WOLF } = wolfjs;
+
+console.log('WOLF =', WOLF);
+console.log('typeof WOLF =', typeof WOLF);
+
 // ==================== ⚙️ الإعدادات ====================
 const ROOM_ID = 81971125;          // 🆔 رقم الغرفة
 const TARGET_USER_ID = 82641759;   // 🆔 ID بوت الكلمات
@@ -144,10 +153,15 @@ async function restartBot(reason) {
 }
 
 // ==================== تشغيل البوت ====================
+// ==================== تشغيل البوت ====================
 function startBot() {
-  service = new WOLF();
+console.log('🚀 محاولة إنشاء WOLF...');
+console.log('WOLF =', WOLF);
+console.log('typeof WOLF =', typeof WOLF);
 
-  service.on('message', async (message) => {
+service = new WOLF();
+
+service.on('message', async (message) => {
     try {
       const senderId = Number(message.sourceSubscriberId);
       const roomId = getRoomId(message);
