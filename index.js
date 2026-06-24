@@ -223,15 +223,18 @@ service = new WOLFBot();
     }
   });
 
-  service.on('ready', async () => {
-    console.log('✅ الحساب جاهز');
+ service.on('ready', async () => {
+  console.log('✅ الحساب جاهز');
 
-    isBotReady = true;
-    reconnecting = false;
+  console.log('🔎 service keys:', Object.keys(service));
+  console.log('🔎 prototype keys:', Object.getOwnPropertyNames(Object.getPrototypeOf(service)));
 
-    await sleep(2000);
-    await send(ROOM_ID, START_COMMAND);
-  });
+  isBotReady = true;
+  reconnecting = false;
+
+  await sleep(2000);
+  await send(ROOM_ID, START_COMMAND);
+});
 
   service.on('error', () => restartBot('service error'));
   service.on('disconnected', () => restartBot('disconnected'));
