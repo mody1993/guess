@@ -2,15 +2,7 @@ import 'dotenv/config';
 import wolfjs from 'wolf.js';
 import { ALL_WORDS } from './wordsLibrary.js';
 
-console.log('========================');
-console.log('wolfjs =', wolfjs);
-console.log('keys =', Object.keys(wolfjs || {}));
-console.log('========================');
-
-const { WOLF } = wolfjs;
-
-console.log('WOLF =', WOLF);
-console.log('typeof WOLF =', typeof WOLF);
+const { WOLFBot } = wolfjs;
 
 // ==================== ⚙️ الإعدادات ====================
 const ROOM_ID = 81971125;          // 🆔 رقم الغرفة
@@ -153,15 +145,10 @@ async function restartBot(reason) {
 }
 
 // ==================== تشغيل البوت ====================
-// ==================== تشغيل البوت ====================
 function startBot() {
-console.log('🚀 محاولة إنشاء WOLF...');
-console.log('WOLF =', WOLF);
-console.log('typeof WOLF =', typeof WOLF);
+  service = new WOLFBot();
 
-service = new WOLF();
-
-service.on('message', async (message) => {
+  service.on('message', async (message) => {
     try {
       const senderId = Number(message.sourceSubscriberId);
       const roomId = getRoomId(message);
