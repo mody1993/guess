@@ -2,8 +2,8 @@ name: WOLFdle Auto Player
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *' # يعمل تلقائياً كل يوم منتصف الليل
+  workflow_dispatch: # زر التشغيل اليدوي
 
 jobs:
   play-game:
@@ -13,11 +13,10 @@ jobs:
       - name: 📥 سحب الكود
         uses: actions/checkout@v4
 
-      - name: 🟢 إعداد نود جي إس
+      - name: 🟢 إعداد نود جي إس (إصدار متوافق)
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          # ❌ قمنا بحذف سطر الـ cache من هنا لمنع الخطأ
+          node-version: '16' # تم التغيير إلى 16 لتوافق حزمة wrtc بالكامل
 
       - name: 📦 تثبيت المكتبات
         run: npm install
