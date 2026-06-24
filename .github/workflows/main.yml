@@ -1,29 +1,36 @@
-name: WOLFdle Auto Player
+name: kalemat Bot Runner
 
 on:
+  push:
+    branches: [ main ]
   schedule:
-    - cron: '0 0 * * *' # يعمل تلقائياً كل يوم منتصف الليل
-  workflow_dispatch: # زر التشغيل اليدوي
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: xobot-group
+  cancel-in-progress: true
 
 jobs:
-  play-game:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 سحب الكود من المستودع
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: 🟢 إعداد نود جي إس
-        uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      - name: 📦 تثبيت المكتبات وتخطي سكربتات البناء المزعجة
-        # أمر --ignore-scripts هو الحل السحري لتخطي فشل بناء مكتبة wrtc للصوت
-        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --no-audit --no-fund
 
-      - name: 🚀 إطلاق البوت
+      - name: Run Bot
         env:
           U_MAIL_1: ${{ secrets.U_MAIL_1 }}
           U_PASS_1: ${{ secrets.U_PASS_1 }}
-        run: npm start
+        run: node index.js
