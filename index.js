@@ -222,12 +222,10 @@ service = new WOLFBot();
       console.log('❌ Message Error:', err.message);
     }
   });
-
- service.on('ready', async () => {
+service.on('ready', async () => {
   console.log('✅ الحساب جاهز');
 
-  console.log('🔎 service keys:', Object.keys(service));
-  console.log('🔎 prototype keys:', Object.getOwnPropertyNames(Object.getPrototypeOf(service)));
+  console.log('🔎 messaging keys:', Object.getOwnPropertyNames(Object.getPrototypeOf(service.messaging)));
 
   isBotReady = true;
   reconnecting = false;
