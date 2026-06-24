@@ -19,17 +19,30 @@ async function guessImage(base64Image) {
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "أجب باسم الشيء فقط بكلمة واحدة بالعربية. لا تكتب أي شيء آخر." },
+                        { text: "أجب باسم الشيء بكلمة واحدة فقط بالعربية." },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
-                }]
+                }],
+                // إعدادات الأمان للسماح بجميع أنواع الصور
+                safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+                ]
             })
         });
         
         const data = await response.json();
-        return data.candidates[0].content.parts[0].text.trim().replace(/[.\\/]/g, '');
+        console.log('🔍 رد Gemini الكامل:', JSON.stringify(data, null, 2));
+
+        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+            return data.candidates[0].content.parts[0].text.trim().replace(/[.\\/]/g, '');
+        } else {
+            return null;
+        }
     } catch (err) {
-        console.error('❌ خطأ في الاتصال المباشر بـ Gemini:', err.message);
+        console.error('❌ خطأ في الاتصال:', err.message);
         return null;
     }
 }
@@ -51,9 +64,11 @@ service.on('message', async (message) => {
             const answer = await guessImage(base64Image);
             
             if (answer) {
-                console.log(`💡 الإجابة: ${answer}`);
+                console.log(`💡 الإجابة المستخرجة: ${answer}`);
                 await service.messaging.sendGroupMessage(ROOM_ID, answer);
                 console.log(`✅ تم الإرسال بنجاح!`);
+            } else {
+                console.log('⚠️ لم يستطع Gemini تحليل الصورة (راجع الرد الكامل أعلاه).');
             }
         } catch (e) {
             console.log('❌ خطأ في المعالجة:', e.message);
