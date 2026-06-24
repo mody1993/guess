@@ -3,7 +3,7 @@ name: WOLFdle Auto Player
 on:
   schedule:
     - cron: '0 0 * * *' # يعمل تلقائياً كل يوم منتصف الليل
-  workflow_dispatch: # زر التشغيل اليدوي للتجربة
+  workflow_dispatch: # زر التشغيل اليدوي
 
 jobs:
   play-game:
@@ -13,14 +13,14 @@ jobs:
       - name: 📥 سحب الكود من المستودع
         uses: actions/checkout@v4
 
-      - name: 🟢 إعداد نود جي إس (الإصدار الأحدث والأقوى)
+      - name: 🟢 إعداد نود جي إس
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # عدنا للنسخة المستقرة الحديثة
+          node-version: '20'
 
-      - name: 📦 تثبيت المكتبات الأساسية وتخطي مكتبات الصوت المسببة للمشاكل
-        # الأمر أدناه يمنع npm من بناء مكتبة wrtc لأنه لا يحتاجها للبوت النصي
-        run: npm install --omit=optional --no-audit --no-fund
+      - name: 📦 تثبيت المكتبات وتخطي سكربتات البناء المزعجة
+        # أمر --ignore-scripts هو الحل السحري لتخطي فشل بناء مكتبة wrtc للصوت
+        run: npm install --ignore-scripts --no-audit --no-fund
 
       - name: 🚀 إطلاق البوت
         env:
