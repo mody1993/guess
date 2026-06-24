@@ -2,25 +2,28 @@ name: WOLFdle Auto Player
 
 on:
   schedule:
-    - cron: '0 0 * * *' # يعمل تلقائياً كل يوم الساعة 12 منتصف الليل بتوقيت جرينتش
-  workflow_dispatch: # يتيح لك إمكانية تشغيل البوت يدوياً بضغطة زر من موقع جيتهاب لتجربته
+    - cron: '0 0 * * *' # ينطلق تلقائياً كل يوم منتصف الليل
+  workflow_dispatch: # زر التشغيل اليدوي للتجربة في أي وقت
 
 jobs:
   play-game:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 سحب الكود من المستودع
+      - name: 📥 سحب الكود
         uses: actions/checkout@v4
 
-      - name: 🟢 إعداد بيئة نود جي إس
+      - name: 🟢 إعداد نود جي إس
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: 📦 تثبيت المكتبات (Puppeteer)
+      - name: 📦 تثبيت المكتبات
         run: npm install
 
-      - name: 🚀 تشغيل البوت الذكي
+      - name: 🚀 إطلاق البوت
+        env:
+          U_MAIL_1: ${{ secrets.U_MAIL_1 }}
+          U_PASS_1: ${{ secrets.U_PASS_1 }}
         run: npm start
