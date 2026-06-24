@@ -4,17 +4,46 @@ import { ALL_WORDS } from './wordsLibrary.js';
 
 const { WOLF } = wolfjs;
 
-// ==================== ⚙️ الإعدادات الدقيقة ====================
+// ==================== ⚙️ الإعدادات ====================
 const ROOM_ID = 81971125;          // 🆔 رقم الغرفة
-const TARGET_USER_ID = 82641759;   // 🆔 ID بوت الكلمات الرسمي
+const TARGET_USER_ID = 82641759;   // 🆔 ID بوت الكلمات
 const START_COMMAND = '!كلمات';    // 🚀 أمر بداية اللعبة
-const FIRST_WORD = 'العمر';        // 🎯 الكلمة الافتتاحية الأولى
+const FIRST_WORD = 'العمر';        // 🎯 أول كلمة
 
-let service = null;
-
-// دالة انتظار
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+let service = null;
+let reconnecting = false;
+let isBotReady = false;
+
+// ==================== إرسال آمن ====================
+async function send(roomId, text) {
+  try {
+    if (!service || !isBotReady) return false;
+
+    await service.messaging.sendGroupMessage(roomId, text);
+    console.log(`📤 تم الإرسال: ${text}`);
+    return true;
+
+  } catch (err) {
+    console.log('❌ فشل الإرسال:', err.message);
+    return false;
+  }
+}
+
+// ==================== استخراج رقم الغرفة ====================
+function getRoomId(message) {
+  return Number(
+    message.targetGroupId ||
+    message.groupId ||
+    message.channelId ||
+    message.recipientGroupId ||
+    message.group?.id ||
+    0
+  );
+}
+
+// ==================== اختيار الكلمة الثانية ====================
 function getOptimalSecondWord(words, firstWord) {
   const firstLetters = new Set(firstWord.split(''));
 
@@ -26,6 +55,7 @@ function getOptimalSecondWord(words, firstWord) {
   return words[0];
 }
 
+// ==================== فلترة القاموس ====================
 function filterDictionary(words, history) {
   return words.filter(word => {
     for (const attempt of history) {
@@ -59,6 +89,7 @@ function filterDictionary(words, history) {
   });
 }
 
+// ==================== تحليل HTML لوحة اللعبة ====================
 function parseGameHtml(html) {
   const regex = /<div class="wolfdlebot-mp-game__content__container__item\s+([^"]+)"[^>]*>(.*?)<\/div>/g;
 
@@ -93,23 +124,51 @@ function parseGameHtml(html) {
   return rows;
 }
 
+// ==================== إعادة تشغيل البوت ====================
+async function restartBot(reason) {
+  if (reconnecting) return;
+
+  reconnecting = true;
+  isBotReady = false;
+
+  console.log('🔄 إعادة تشغيل البوت بسبب:', reason);
+
+  try {
+    if (service) {
+      service.removeAllListeners();
+      await service.logout().catch(() => {});
+    }
+  } catch {}
+
+  await sleep(5000);
+  startBot();
+}
+
+// ==================== تشغيل البوت ====================
 function startBot() {
   service = new WOLF();
 
   service.on('message', async (message) => {
     try {
       const senderId = Number(message.sourceSubscriberId);
-      const roomId = Number(message.targetGroupId || message.groupId || 0);
+      const roomId = getRoomId(message);
 
-      if (roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
+      if (!message.isGroup) return;
+      if (roomId !== ROOM_ID) return;
+      if (senderId !== TARGET_USER_ID) return;
 
-      const htmlContent = message.body || '';
+      const htmlContent =
+        message.body ||
+        message.content ||
+        message.text ||
+        message.message ||
+        '';
 
       if (!htmlContent.includes('wolfdlebot')) return;
 
       const history = parseGameHtml(htmlContent);
 
-      console.log(`\n📊 تم تحليل اللوحة الحالية. المحاولات الحالية: ${history.length}`);
+      console.log(`\n📊 تم تحليل اللوحة. عدد المحاولات: ${history.length}`);
 
       if (
         history.length > 0 &&
@@ -129,26 +188,27 @@ function startBot() {
 
       if (history.length === 0) {
         nextGuess = FIRST_WORD;
-        console.log(`🎯 خطوة 1: إرسال الكلمة الافتتاحية: [ ${nextGuess} ]`);
+        console.log(`🎯 المحاولة الأولى: ${nextGuess}`);
       }
 
       else if (history.length === 1) {
         nextGuess = getOptimalSecondWord(currentPool, history[0].word);
-        console.log(`🔍 خطوة 2: إرسال كلمة بحروف مختلفة: [ ${nextGuess} ]`);
+        console.log(`🔍 المحاولة الثانية: ${nextGuess}`);
       }
 
       else {
         currentPool = filterDictionary(currentPool, history);
 
         if (currentPool.length === 0) {
-          console.log('⚠️ لا توجد كلمات مطابقة للشروط في المكتبة.');
+          console.log('⚠️ لا توجد كلمات مطابقة في المكتبة.');
           return;
         }
 
         nextGuess = currentPool[0];
 
-        console.log(`🚀 خطوة ${history.length + 1}: الكلمات المتبقية: ${currentPool.length}`);
-        console.log(`👉 الكلمة المختارة: [ ${nextGuess} ]`);
+        console.log(`🚀 المحاولة ${history.length + 1}`);
+        console.log(`📚 عدد الكلمات المتبقية: ${currentPool.length}`);
+        console.log(`👉 الكلمة المختارة: ${nextGuess}`);
       }
 
       if (!nextGuess) {
@@ -157,27 +217,31 @@ function startBot() {
       }
 
       await sleep(1500);
-      await service.messaging.sendGroupMessage(ROOM_ID, nextGuess);
-
-      console.log(`📤 تم إرسال التخمين: ${nextGuess}`);
+      await send(ROOM_ID, nextGuess);
 
     } catch (err) {
-      console.error('❌ حدث خطأ أثناء معالجة اللعبة:', err.message);
+      console.log('❌ Message Error:', err.message);
     }
   });
 
   service.on('ready', async () => {
-    console.log('✅ البوت متصل وجاهز.');
+    console.log('✅ الحساب جاهز');
 
-    await sleep(3000);
+    isBotReady = true;
+    reconnecting = false;
 
-    await service.messaging.sendGroupMessage(ROOM_ID, START_COMMAND);
+    await sleep(2000);
 
-    console.log(`📤 تم إرسال أمر البداية: ${START_COMMAND}`);
+    await send(ROOM_ID, START_COMMAND);
   });
 
-  service.login(process.env.U_MAIL_1, process.env.U_PASS_1).catch(err => {
-    console.error('❌ فشل تسجيل الدخول إلى وولف:', err.message);
+  service.on('error', () => restartBot('service error'));
+  service.on('disconnected', () => restartBot('disconnected'));
+  service.on('close', () => restartBot('close'));
+
+  service.login(process.env.U_MAIL_1, process.env.U_PASS_1).catch(() => {
+    reconnecting = false;
+    restartBot('login failed');
   });
 }
 
