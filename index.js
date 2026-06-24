@@ -237,11 +237,13 @@ service = new WOLFBot();
   service.on('disconnected', () => restartBot('disconnected'));
   service.on('close', () => restartBot('close'));
 
-try {
-  service.login(process.env.U_MAIL_1, process.env.U_PASS_1);
-} catch (err) {
-  console.log('❌ فشل تسجيل الدخول:', err.message);
-  reconnecting = false;
-  restartBot('login failed');
+  try {
+    service.login(process.env.U_MAIL_1, process.env.U_PASS_1);
+  } catch (err) {
+    console.log('❌ فشل تسجيل الدخول:', err.message);
+    reconnecting = false;
+    restartBot('login failed');
+  }
 }
+
 startBot();
