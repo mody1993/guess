@@ -8,7 +8,14 @@ const WOLF_CLIENT = wolfjs.WOLF || wolfjs.WOLFBot;
 const ROOM_ID = 81971125;
 const TARGET_USER_ID = 82641759;
 const START_COMMAND = '!كلمات';
-const FIRST_WORD = 'العمر';
+
+const TEST_WORDS = [
+  'الميت',
+  'سبدور',
+  'هنفقة',
+  'شجزكط',
+  'حخضذص'
+];
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -59,48 +66,6 @@ async function send(roomId, text) {
   }
 }
 
-function getOptimalSecondWord(words, firstWord) {
-  const firstLetters = new Set(firstWord.split(''));
-
-  for (const word of words) {
-    const hasOverlap = word.split('').some(char => firstLetters.has(char));
-    if (!hasOverlap) return word;
-  }
-
-  return words[0];
-}
-
-function filterDictionary(words, history) {
-  return words.filter(word => {
-    for (const attempt of history) {
-      const guess = attempt.word;
-      const feedback = attempt.feedback;
-
-      for (let i = 0; i < 5; i++) {
-        const letter = guess[i];
-        const status = feedback[i];
-
-        if (status === 'green' && word[i] !== letter) return false;
-
-        if (status === 'yellow') {
-          if (!word.includes(letter) || word[i] === letter) return false;
-        }
-
-        if (status === 'gray') {
-          const isLetterElsewhere = guess
-            .split('')
-            .some((l, idx) => l === letter && feedback[idx] !== 'gray');
-
-          if (!isLetterElsewhere && word.includes(letter)) return false;
-          if (isLetterElsewhere && word[i] === letter) return false;
-        }
-      }
-    }
-
-    return true;
-  });
-}
-
 function parseGameHtml(html) {
   const regex = /<div class="wolfdlebot-mp-game__content__container__item\s+([^"]+)"[^>]*>(.*?)<\/div>/g;
 
@@ -139,20 +104,83 @@ function parseGameHtml(html) {
   return rows;
 }
 
-function chooseNextGuess(history) {
-  let currentPool = [...ALL_WORDS];
+function countKnownSlots(history) {
+  let count = 0;
 
-  if (history.length === 0) return FIRST_WORD;
-
-  if (history.length === 1) {
-    return getOptimalSecondWord(currentPool, history[0].word);
+  for (const attempt of history) {
+    for (const status of attempt.feedback) {
+      if (status === 'green' || status === 'yellow') {
+        count++;
+      }
+    }
   }
 
-  currentPool = filterDictionary(currentPool, history);
+  return count;
+}
+
+function filterDictionary(words, history) {
+  return words.filter(word => {
+    for (const attempt of history) {
+      const guess = attempt.word;
+      const feedback = attempt.feedback;
+
+      for (let i = 0; i < 5; i++) {
+        const letter = guess[i];
+        const status = feedback[i];
+
+        if (status === 'green') {
+          if (word[i] !== letter) return false;
+        }
+
+        if (status === 'yellow') {
+          if (!word.includes(letter)) return false;
+          if (word[i] === letter) return false;
+        }
+
+        if (status === 'gray') {
+          const sameLetterHasColor = guess
+            .split('')
+            .some((l, idx) => l === letter && feedback[idx] !== 'gray');
+
+          if (!sameLetterHasColor && word.includes(letter)) return false;
+          if (sameLetterHasColor && word[i] === letter) return false;
+        }
+      }
+    }
+
+    return true;
+  });
+}
+
+function chooseNextGuess(history) {
+  const usedWords = history.map(h => h.word);
+  const knownSlots = countKnownSlots(history);
+
+  console.log(`✅ عدد الخانات المعروفة أخضر/أصفر: ${knownSlots}`);
+
+  if (knownSlots < 5) {
+    const nextTestWord = TEST_WORDS.find(w => !usedWords.includes(w));
+
+    if (nextTestWord) {
+      console.log('🧪 مرحلة اختبار الحروف');
+      return nextTestWord;
+    }
+  }
+
+  console.log('📚 مرحلة البحث في القاموس');
+
+  const currentPool = filterDictionary(ALL_WORDS, history)
+    .filter(w => !usedWords.includes(w));
 
   console.log(`📚 عدد الكلمات المتبقية: ${currentPool.length}`);
 
-  if (currentPool.length === 0) return null;
+  if (currentPool.length === 0) {
+    const fallbackTest = TEST_WORDS.find(w => !usedWords.includes(w));
+    if (fallbackTest) return fallbackTest;
+
+    const fallbackDict = ALL_WORDS.find(w => !usedWords.includes(w));
+    return fallbackDict || null;
+  }
 
   return currentPool[0];
 }
