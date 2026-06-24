@@ -2,8 +2,7 @@ import 'dotenv/config';
 import wolfjs from 'wolf.js';
 import { ALL_WORDS } from './wordsLibrary.js';
 
-const { WOLF } = wolfjs;
-
+const WOLF = wolfjs.WOLF || wolfjs.default || wolfjs;
 // ==================== ⚙️ الإعدادات ====================
 const ROOM_ID = 81971125;          // 🆔 رقم الغرفة
 const TARGET_USER_ID = 82641759;   // 🆔 ID بوت الكلمات
