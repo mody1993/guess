@@ -77,12 +77,9 @@ const ALL_WORDS = [
   'العلوم', 'النجوم', 'الغيوم', 'الهموم', 'القلوب', 'العيوب', 'الذنوب', 'الدروب', 'الغروب', 'الشروق', 
   'النفوس', 'الرؤوس', 'الدروس', 'العروس', 'الشهور', 'الزهور', 'الصخور', 'الشكور', 'الصبور', 'الغفور'
 ];
-
 // فلترة نهائية صارمة لضمان الطول وعدم التكرار
 const UNIQUE_WORDS = [...new Set(ALL_WORDS)]
   .map(w => w.trim())
   .filter(w => w.length === 5);
 
-module.exports = {
-  ALL_WORDS: UNIQUE_WORDS
-};
+export { UNIQUE_WORDS as ALL_WORDS };
