@@ -17,6 +17,8 @@ const TEST_WORDS = [
   'حخضذص'
 ];
 
+const MIN_UNIQUE_LETTERS_BEFORE_DICTIONARY = 7;
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 let service = null;
@@ -104,18 +106,21 @@ function parseGameHtml(html) {
   return rows;
 }
 
+// يحسب الحروف المختلفة المكتشفة، وليس عدد الخانات
 function countKnownSlots(history) {
-  let count = 0;
+  const knownLetters = new Set();
 
   for (const attempt of history) {
-    for (const status of attempt.feedback) {
+    for (let i = 0; i < 5; i++) {
+      const status = attempt.feedback[i];
+
       if (status === 'green' || status === 'yellow') {
-        count++;
+        knownLetters.add(attempt.word[i]);
       }
     }
   }
 
-  return count;
+  return knownLetters.size;
 }
 
 function filterDictionary(words, history) {
@@ -154,11 +159,11 @@ function filterDictionary(words, history) {
 
 function chooseNextGuess(history) {
   const usedWords = history.map(h => h.word);
-  const knownSlots = countKnownSlots(history);
+  const knownLettersCount = countKnownSlots(history);
 
-  console.log(`✅ عدد الخانات المعروفة أخضر/أصفر: ${knownSlots}`);
+  console.log(`✅ عدد الحروف الفريدة المكتشفة: ${knownLettersCount}`);
 
-  if (knownSlots < 5) {
+  if (knownLettersCount < MIN_UNIQUE_LETTERS_BEFORE_DICTIONARY) {
     const nextTestWord = TEST_WORDS.find(w => !usedWords.includes(w));
 
     if (nextTestWord) {
