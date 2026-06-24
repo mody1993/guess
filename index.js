@@ -32,7 +32,7 @@ async function send(roomId, text) {
   try {
     if (!service || !isBotReady) return false;
 
-    await service.messaging.sendGroupMessage(roomId, text);
+await service.message.sendGroup(roomId, text);
     console.log(`📤 تم الإرسال: ${text}`);
     return true;
   } catch (err) {
