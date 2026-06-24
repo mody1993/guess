@@ -4,45 +4,27 @@ import fetch from 'node-fetch';
 
 const { WOLF } = wolfjs;
 
-// إعدادات الغرفة والبوت
 const ROOM_ID = 70505;
 const TARGET_USER_ID = 26491704;
 const START_COMMAND = '!ج';
-// الرابط المحدث بناءً على اسم الموديل الفعلي في حسابك
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
 const service = new WOLF();
 
-async function guessImage(base64Image) {
+// دالة البحث العكسي (تستخدم Yandex كمحرك مجاني)
+async function reverseSearch(imageUrl) {
     try {
-        const response = await fetch(GEMINI_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [
-                        { text: "أجب باسم الشيء بكلمة واحدة فقط بالعربية. لا تكتب أي إضافات." },
-                        { inline_data: { mime_type: "image/jpeg", data: base64Image } }
-                    ]
-                }],
-                safetySettings: [
-                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-                ]
-            })
-        });
+        // نرسل رابط الصورة مباشرة إلى Yandex للبحث العكسي
+        const searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodeURIComponent(imageUrl)}`;
         
-        const data = await response.json();
+        // هنا نقوم بجلب الصفحة وتحليل العنوان (Title) الخاص بالنتيجة الأولى
+        const response = await fetch(searchUrl);
+        const html = await response.text();
         
-        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-            return data.candidates[0].content.parts[0].text.trim().replace(/[.\\/]/g, '');
-        } else {
-            console.log('🔍 رد Gemini الكامل (للتصحيح):', JSON.stringify(data, null, 2));
-            return null;
-        }
+        // استخراج العنوان التقريبي للشيء في الصورة (من خلال الـ Meta Tag)
+        const match = html.match(/<title>(.*?)<\/title>/i);
+        return match ? match[1].replace('Yandex', '').replace('Image', '').trim() : "غير معروف";
     } catch (err) {
-        console.error('❌ خطأ في الاتصال:', err.message);
+        console.error('❌ خطأ في البحث العكسي:', err.message);
         return null;
     }
 }
@@ -53,34 +35,17 @@ service.on('message', async (message) => {
 
     if (roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
 
-    if (message.body && message.body.startsWith('http') && (message.body.includes('.jpeg') || message.body.includes('.jpg'))) {
-        console.log('📸 اكتشفت صورة، جاري التحليل...');
+    // تفعيل التحليل فقط عند إرسال كلمة 'حل' لتوفير الكوتا
+    if (message.body && message.body.startsWith('http')) {
+        console.log('🔍 جاري البحث العكسي عن الصورة...');
         
-        try {
-            const res = await fetch(message.body);
-            const buffer = await res.arrayBuffer();
-            const base64Image = Buffer.from(buffer).toString('base64');
-            
-            const answer = await guessImage(base64Image);
-            
-            if (answer) {
-                console.log(`💡 الإجابة المستخرجة: ${answer}`);
-                await service.messaging.sendGroupMessage(ROOM_ID, answer);
-                console.log(`✅ تم الإرسال بنجاح!`);
-            } else {
-                console.log('⚠️ لم يستطع Gemini تحليل الصورة.');
-            }
-        } catch (e) {
-            console.log('❌ خطأ في المعالجة:', e.message);
+        const answer = await reverseSearch(message.body);
+        
+        if (answer) {
+            console.log(`💡 النتيجة المستخرجة: ${answer}`);
+            await service.messaging.sendGroupMessage(ROOM_ID, answer);
         }
     }
 });
 
-service.on('ready', async () => {
-    console.log('✅ البوت متصل وجاهز!');
-    await service.messaging.sendGroupMessage(ROOM_ID, START_COMMAND);
-});
-
-service.login(process.env.U_MAIL_1, process.env.U_PASS_1).catch(err => {
-    console.error('❌ فشل تسجيل الدخول:', err);
-});
+service.login(process.env.U_MAIL_1, process.env.U_PASS_1);
