@@ -83,4 +83,6 @@ const UNIQUE_WORDS = [...new Set(ALL_WORDS)]
   .map(w => w.trim())
   .filter(w => w.length === 5);
 
-export { UNIQUE_WORDS as ALL_WORDS };
+module.exports = {
+  ALL_WORDS: UNIQUE_WORDS
+};
