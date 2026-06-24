@@ -1,57 +1,141 @@
-import { WOLFBot } from 'wolf.js';
+import 'dotenv/config';
+import wolfjs from 'wolf.js';
+import { GoogleGenAI } from '@google/genai';
 
-// ==================== [ قسم الإعدادات الآمنة ] ====================
-const CONFIG = {
-    // هذه البيانات يتم سحبها من إعدادات السيرفر (Environment Variables)
-    U_MAIL: process.env.U_MAIL, 
-    U_PASS: process.env.U_PASS,
-    TARGET_GROUP_ID: 70505,
-    PHOTO_BOT_ID: 26491704
-};
+const { WOLF } = wolfjs;
 
-// ==================== [ قاعدة بيانات الصور والحلول ] ====================
-const imageDatabase = {
-    "https://example.com/apple.png": "تفاحة",
-    "https://example.com/car.png": "سيارة",
-    "https://example.com/cat.png": "قطة"
-};
+// ================== الإعدادات ==================
+const ROOM_ID = 70505;
+const TARGET_USER_ID = 26491704; // الـ ID الخاص بـ Guess What Bot
+const START_COMMAND = '!ج';
 
-let currentCorrectAnswer = null;
+// تهيئة ذكاء Google المجاني باستخدام المتغير البيئي الجديد
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// تسجيل الدخول مع التحقق من وجود البيانات
-if (!CONFIG.U_MAIL || !CONFIG.U_PASS) {
-    console.error("[-] خطأ: لم يتم العثور على الإيميل أو الباسورد في إعدادات السيرفر!");
-    process.exit(1);
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+let service = null;
+let reconnecting = false;
+let isBotReady = false;
+
+function getRoomId(message) {
+  return Number(message.targetGroupId || message.groupId || message.channelId || message.recipientGroupId || message.group?.id || 0);
 }
 
-const bot = new WOLFBot({ log: true });
+async function send(roomId, text) {
+  try {
+    if (!service || !isBotReady) return false;
+    await service.messaging.sendGroupMessage(roomId, text);
+    console.log(`🚀 تم إرسال الإجابة: ${text}`);
+    return true;
+  } catch (err) {
+    console.log('❌ فشل الإرسال:', err.message);
+    return false;
+  }
+}
 
-bot.on('ready', async () => {
-    console.log(`[+] البوت شغال ومسجل دخول بنجاح الآن!`);
-    await bot.group().join(CONFIG.TARGET_GROUP_ID);
-    console.log(`[+] تم دخول الغرفة رقم: ${CONFIG.TARGET_GROUP_ID}`);
-});
-
-bot.on('message', async (message) => {
-    if (!message.isGroup || message.targetGroupId !== CONFIG.TARGET_GROUP_ID) { return; }
-
-    if (message.isImage && message.senderId === CONFIG.PHOTO_BOT_ID) {
-        const imageUrl = message.body;
-        if (imageDatabase[imageUrl]) {
-            currentCorrectAnswer = imageDatabase[imageUrl];
-            console.log(`[💡] تم رصد صورة، الحل: (${currentCorrectAnswer})`);
-        } else {
-            currentCorrectAnswer = null;
+// ================== دالة التخمين المجانية عبر Gemini ==================
+async function guessImage(base64Image, mimeType) {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash', // الموديل فائق السرعة والمجاني لقراءة وتحليل الصور
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: "ما هذا الشيء الموجود في الصورة؟ أجب بكلمة واحدة أو كلمتين فقط باللغة العربية (مثال مباشر: أسد، بيانو، برج إيفل، ناروتو، بيتزا، كرة القدم، فيسبوك). لا تكتب أي مقدمات، شرح، أو علامات ترقيم، فقط الاسم المباشر والصحيح للشيء للفوز بالمسابقة." },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Image
+              }
+            }
+          ]
         }
+      ],
+      generationConfig: {
+        maxOutputTokens: 15,
+        temperature: 0.1
+      }
+    });
+
+    const answer = response.text?.trim();
+    return answer ? answer.replace(/[.\\/]/g, '') : null;
+
+  } catch (error) {
+    console.error('❌ خطأ أثناء التخمين عبر Gemini:', error.message);
+    return null;
+  }
+}
+
+// ================== تشغيل البوت والربط مع وولف ==================
+function startBot() {
+  service = new WOLF();
+
+  service.on('message', async (message) => {
+    try {
+      const senderId = Number(message.sourceSubscriberId);
+      const roomId = getRoomId(message);
+
+      // الفلاتر والشروط الأساسية للغرفة وبوت الفعاليات
+      if (!message.isGroup || roomId !== ROOM_ID || senderId !== TARGET_USER_ID) return;
+
+      // فحص إذا كانت الرسالة القادمة عبارة عن صورة
+      const isImage = message.mimeType?.startsWith('image/') || message.isImage || Buffer.isBuffer(message.body);
+      if (!isImage) return;
+
+      console.log('--------------------');
+      console.log('📸 تم استلام صورة من بوت الفعاليات، جاري معالجتها مجاناً...');
+
+      let imageBuffer = message.body;
+      if (!imageBuffer || !Buffer.isBuffer(imageBuffer)) {
+        console.log('⚠️ لم يتم العثور على بافر الصورة داخل الرسالة.');
         return;
-    }
+      }
 
-    if (message.isText && currentCorrectAnswer && message.body.trim() === currentCorrectAnswer) {
-        const subscriber = await bot.subscriber().getById(message.senderId);
-        const playerName = subscriber ? subscriber.nickname : "اللاعب";
-        await bot.messaging().sendGroupMessage(CONFIG.TARGET_GROUP_ID, `🎉 إجابة صحيحة يا [ ${playerName} ]! الجواب هو: ${currentCorrectAnswer}`);
-        currentCorrectAnswer = null;
-    }
-});
+      const mimeType = message.mimeType || 'image/jpeg';
+      const base64Image = imageBuffer.toString('base64');
 
-bot.login(CONFIG.U_MAIL, CONFIG.U_PASS);
+      const startTime = Date.now();
+      const answer = await guessImage(base64Image, mimeType);
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      if (answer) {
+        console.log(`💡 التخمين الذكي (Gemini): "${answer}" (استغرق ${duration} ثانية)`);
+        await send(roomId, answer);
+      }
+
+    } catch (err) {
+      console.log('❌ Message Error:', err.message);
+    }
+  });
+
+  service.on('ready', async () => {
+    console.log('✅ الحساب جاهز ومستعد لتخمين الصور مجاناً بالكامل عبر Gemini!');
+    isBotReady = true;
+    reconnecting = false;
+    await sleep(2000);
+    await send(ROOM_ID, START_COMMAND);
+  });
+
+  service.on('error', () => restartBot('service error'));
+  service.on('disconnected', () => restartBot('disconnected'));
+  service.on('close', () => restartBot('close'));
+
+  service.login(process.env.U_MAIL_1, process.env.U_PASS_1).catch(() => {
+    reconnecting = false;
+    restartBot('login failed');
+  });
+}
+
+async function restartBot(reason) {
+  if (reconnecting) return;
+  reconnecting = true;
+  isBotReady = false;
+  console.log('🔄 إعادة تشغيل البوت بسبب:', reason);
+  try { if (service) { service.removeAllListeners(); await service.logout().catch(() => {}); } } catch {}
+  await sleep(5000);
+  startBot();
+}
+
+startBot();
