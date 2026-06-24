@@ -1,9 +1,9 @@
-import 'dotenv/config';
-import wolfjs from 'wolf.js';
-import { ALL_WORDS } from './wordsLibrary.js';
+require('dotenv/config');
 
-const { WOLF } = wolfjs;
+const wolfjs = require('wolf.js');
+const { ALL_WORDS } = require('./wordsLibrary.js');
 
+const { WOLFBot } = wolfjs;
 // ==================== ⚙️ الإعدادات ====================
 const ROOM_ID = 81971125;
 const TARGET_USER_ID = 82641759;
@@ -161,8 +161,8 @@ async function restartBot(reason) {
 
 // ==================== تشغيل البوت ====================
 function startBot() {
-  service = new WOLF();
-
+service = new WOLFBot();
+  
   service.on('message', async (message) => {
     try {
       const senderId = Number(message.sourceSubscriberId);
@@ -243,7 +243,4 @@ function startBot() {
     restartBot('login failed');
   });
 }
-// للتشخيص
-console.log('📦 wolf.js exports:', wolfjs);
-
 startBot();
