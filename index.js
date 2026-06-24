@@ -9,8 +9,7 @@ const ROOM_ID = 70505;
 const TARGET_USER_ID = 26491704;
 const START_COMMAND = '!ج';
 // الرابط المحدث بناءً على اسم الموديل الفعلي في حسابك
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 const service = new WOLF();
 
 async function guessImage(base64Image) {
